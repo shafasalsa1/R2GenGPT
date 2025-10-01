@@ -53,13 +53,13 @@ class R2GenGPT(pl.LightningModule):
                 args.llama_model,
                 torch_dtype=torch.float16,
                 load_in_8bit=True,
-                device_map="auto"
+                device_map={"":0}
             )
         else:
             self.llama_model = LlamaForCausalLM.from_pretrained(
                 args.llama_model,
                 torch_dtype=torch.float16,
-            )
+            ).to("cuda:0")
          
         if args.llm_use_lora:
             self.embed_tokens = self.llama_model.get_input_embeddings()
