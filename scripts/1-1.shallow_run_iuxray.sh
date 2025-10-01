@@ -16,12 +16,14 @@ python -u train.py \
     --freeze_vm True \
     --vis_use_lora False \
     --savedmodel_path ${savepath} \
-    --max_length 60 \
+    --max_length 40 \
     --min_new_tokens 40 \
     --max_new_tokens 100 \
     --repetition_penalty 2.0 \
+    --precision 16-mixed \
     --length_penalty 2.0 \
     --num_workers 4 \
+    --accumulate_grad_batches=4 \
     --devices 2 \
     --max_epochs 15 \
     --limit_val_batches 1.0 \
