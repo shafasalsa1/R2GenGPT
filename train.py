@@ -14,7 +14,6 @@ def train(args):
 
     trainer = pl.Trainer(
         devices=1,
-        gpus=1,
         num_nodes=args.num_nodes,
         strategy=args.strategy,
         accelerator=args.accelerator,
@@ -51,3 +50,4 @@ def main():
 if __name__ == '__main__':
 
     main()
+
