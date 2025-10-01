@@ -22,6 +22,7 @@ python -u train.py \
     --max_new_tokens 100 \
     --repetition_penalty 2.0 \
     --length_penalty 2.0 \
+    --strategy auto \
     --num_workers 2 \
     --devices 2 \
     --max_epochs 15 \
