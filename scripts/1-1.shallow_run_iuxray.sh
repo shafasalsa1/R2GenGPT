@@ -23,7 +23,7 @@ python -u train.py \
     --repetition_penalty 2.0 \
     --length_penalty 2.0 \
     --num_workers 2 \
-    --devices 1 \
+    --devices 2 \
     --max_epochs 15 \
     --limit_val_batches 1.0 \
     --val_check_interval 1.0 \
