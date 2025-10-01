@@ -21,7 +21,7 @@ python -u train.py \
     --max_new_tokens 100 \
     --repetition_penalty 2.0 \
     --length_penalty 2.0 \
-    --num_workers 8 \
+    --num_workers 4 \
     --devices 2 \
     --max_epochs 15 \
     --limit_val_batches 1.0 \
