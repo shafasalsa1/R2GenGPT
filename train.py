@@ -13,7 +13,8 @@ def train(args):
     callbacks = add_callbacks(args)
 
     trainer = pl.Trainer(
-        devices=args.devices,
+        devices=1,
+        gpus=1,
         num_nodes=args.num_nodes,
         strategy=args.strategy,
         accelerator=args.accelerator,
@@ -48,4 +49,5 @@ def main():
 
 
 if __name__ == '__main__':
+
     main()
