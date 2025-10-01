@@ -11,12 +11,12 @@ python -u train.py \
     --dataset ${dataset} \
     --annotation ${annotation} \
     --base_dir ${base_dir} \
-    --batch_size 1 \
+    --batch_size 2 \
     --val_batch_size 2 \
     --freeze_vm True \
     --vis_use_lora False \
     --savedmodel_path ${savepath} \
-    --max_length 40 \
+    --max_length 50 \
     --min_new_tokens 40 \
     --max_new_tokens 100 \
     --repetition_penalty 2.0 \
