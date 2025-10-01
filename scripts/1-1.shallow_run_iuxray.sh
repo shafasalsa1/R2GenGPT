@@ -12,7 +12,7 @@ python -u train.py \
     --annotation ${annotation} \
     --base_dir ${base_dir} \
     --batch_size 1 \
-    --val_batch_size 2 \
+    --val_batch_size 1 \
     --low_resource True \
     --freeze_vm True \
     --vis_use_lora False \
@@ -24,7 +24,7 @@ python -u train.py \
     --length_penalty 2.0 \
     --strategy auto \
     --num_workers 2 \
-    --devices 2 \
+    --devices 1 \
     --max_epochs 15 \
     --limit_val_batches 1.0 \
     --val_check_interval 1.0 \
