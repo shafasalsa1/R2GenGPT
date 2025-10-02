@@ -16,7 +16,7 @@ python -u train.py \
     --freeze_vm False \
     --vis_use_lora False \
     --savedmodel_path ${savepath} \
-    --max_length 60 \
+    --max_length 50 \
     --min_new_tokens 40 \
     --max_new_tokens 100 \
     --repetition_penalty 2.0 \
