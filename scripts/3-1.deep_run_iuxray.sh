@@ -12,7 +12,7 @@ python -u train.py \
     --annotation ${annotation} \
     --base_dir ${base_dir} \
     --batch_size 1 \
-    --val_batch_size 2 \
+    --val_batch_size 1 \
     --freeze_vm False \
     --vis_use_lora False \
     --savedmodel_path ${savepath} \
