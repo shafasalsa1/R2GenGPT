@@ -16,15 +16,15 @@ python -u train.py \
     --freeze_vm True \
     --vis_use_lora False \
     --savedmodel_path ${savepath} \
-    --max_length 50 \
+    --max_length 60 \
     --min_new_tokens 40 \
     --max_new_tokens 100 \
     --repetition_penalty 2.0 \
-    --precision 16-mixed \
+    --precision 16 \
     --length_penalty 2.0 \
     --num_workers 2 \
     --accumulate_grad_batches=8 \
-    --devices 1 \
+    --devices 2 \
     --max_epochs 15 \
     --limit_val_batches 1.0 \
     --val_check_interval 1.0 \
