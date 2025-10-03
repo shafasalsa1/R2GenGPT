@@ -225,7 +225,7 @@ class R2GenGPT(pl.LightningModule):
         
         try:
             model_upload(
-                handle=f"rezakurniawan27/R2GenGPT/pyTorch/{variation_slug}", 
+                handle=f"darnellignasius2/R2GenGPT/pyTorch/{variation_slug}", 
                 local_model_dir=save_to,
                 version_notes=f"Update 2025-10-02"
             )
