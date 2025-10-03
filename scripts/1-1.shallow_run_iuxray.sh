@@ -25,7 +25,7 @@ python -u train.py \
     --num_workers 2 \
     --accumulate_grad_batches=8 \
     --devices 1 \
-    --max_epochs 1 \
+    --max_epochs 15 \
     --limit_val_batches 1.0 \
     --val_check_interval 1.0 \
     --num_sanity_val_steps 0 \
