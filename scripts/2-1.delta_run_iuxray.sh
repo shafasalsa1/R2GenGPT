@@ -20,7 +20,7 @@ python -u train.py \
     --min_new_tokens 40 \
     --max_new_tokens 100 \
     --repetition_penalty 2.0 \
-    --precision 16-mixed \
+    --precision 16 \
     --length_penalty 2.0 \
     --num_workers 2 \
     --accumulate_grad_batches=8 \
