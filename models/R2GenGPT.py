@@ -51,9 +51,9 @@ class R2GenGPT(pl.LightningModule):
         self.llama_tokenizer.pad_token_id = 0
         if args.low_resource:
             self.llama_model = LlamaForCausalLM.from_pretrained(
-                args.llama_model
+                args.llama_model,
                 torch_dtype=torch.float16,
-                device_map={"auto"}
+                device_map= "auto"
             )
         else:
             self.llama_model = LlamaForCausalLM.from_pretrained(
