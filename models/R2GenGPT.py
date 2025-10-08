@@ -4,6 +4,9 @@ import torch
 import torch.nn as nn
 import lightning.pytorch as pl
 from lightning.pytorch.utilities.parsing import AttributeDict
+
+torch.serialization.add_safe_globals([AttributeDict])
+
 import torch.serialization
 from transformers import LlamaForCausalLM, LlamaTokenizer
 from evalcap.bleu.bleu import Bleu
@@ -15,8 +18,6 @@ from lightning_tools.optim import config_optimizer
 from peft import get_peft_model, LoraConfig, TaskType
 import pdb
 from kagglehub import model_upload
-
-torch.serialization.add_safe_globals([AttributeDict])
 
 
 class R2GenGPT(pl.LightningModule):
