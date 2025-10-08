@@ -384,7 +384,7 @@ class R2GenGPT(pl.LightningModule):
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=self.hparams.max_epochs, eta_min=1e-6)
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
-        def get_progress_bar_dict(self):
+    def get_progress_bar_dict(self):
         # don't show the version number
         items = super().get_progress_bar_dict()
         items.pop("v_num", None)
