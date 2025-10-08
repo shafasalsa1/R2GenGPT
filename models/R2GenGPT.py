@@ -82,7 +82,7 @@ class R2GenGPT(pl.LightningModule):
         self.test_step_outputs = []
         self.val_score = 0.0
 
-    if args.delta_file is not None:
+        if args.delta_file is not None:
             state_dict = torch.load(args.delta_file, map_location=torch.device(f'cuda:{torch.cuda.current_device()}'))['model']
             self.load_state_dict(state_dict=state_dict, strict=False)
             print(f'Load checkpoint from {args.delta_file}')
