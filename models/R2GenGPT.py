@@ -3,6 +3,8 @@ import json
 import torch
 import torch.nn as nn
 import lightning.pytorch as pl
+from lightning.pytorch.utilities.parsing import AttributeDict
+import torch.serialization
 from transformers import LlamaForCausalLM, LlamaTokenizer
 from evalcap.bleu.bleu import Bleu
 from evalcap.rouge.rouge import Rouge
@@ -86,10 +88,11 @@ class R2GenGPT(pl.LightningModule):
         self.val_score = 0.0
 
         if args.delta_file is not None:
+            torch.serialization.add_safe_globals([AttributeDict])
             state_dict = torch.load(
             args.delta_file,
             map_location=torch.device(f'cuda:{torch.cuda.current_device()}'),
-            weights_only=False  # ✅ tambahkan ini
+            weights_only=False 
             )['model']
             
             self.load_state_dict(state_dict=state_dict, strict=False)
