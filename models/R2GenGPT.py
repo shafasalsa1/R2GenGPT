@@ -16,6 +16,7 @@ from peft import get_peft_model, LoraConfig, TaskType
 import pdb
 from kagglehub import model_upload
 
+torch.serialization.add_safe_globals([AttributeDict])
 
 
 class R2GenGPT(pl.LightningModule):
@@ -88,16 +89,26 @@ class R2GenGPT(pl.LightningModule):
         self.val_score = 0.0
 
         if args.delta_file is not None:
-            torch.serialization.add_safe_globals([AttributeDict])
-            state_dict = torch.load(
+    print(f"🔹 Loading delta weights from {args.delta_file}")
+    try:
+        state_obj = torch.load(
             args.delta_file,
-            map_location=torch.device(f'cuda:{torch.cuda.current_device()}'),
-            weights_only=False 
-            )['model']
-            
-            self.load_state_dict(state_dict=state_dict, strict=False)
-            print(f'Load checkpoint from {args.delta_file}')
+            map_location=torch.device(f"cuda:{torch.cuda.current_device()}"),
+            weights_only=False  # penting
+        )
 
+        if "model" in state_obj:
+            state_dict = state_obj["model"]
+        elif "state_dict" in state_obj:
+            state_dict = state_obj["state_dict"]
+        else:
+            state_dict = state_obj
+
+        self.load_state_dict(state_dict=state_dict, strict=False)
+        print(f"✅ Loaded checkpoint from {args.delta_file}")
+
+    except Exception as e:
+        print(f"❌ Gagal load checkpoint: {str(e)}")
 
     def score(self, ref, hypo):
         """
