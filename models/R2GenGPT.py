@@ -3,6 +3,8 @@ import json
 import torch
 import torch.nn as nn
 import lightning.pytorch as pl
+from lightning.pytorch.utilities.parsing import AttributeDict
+import torch.serialization
 from transformers import LlamaForCausalLM, LlamaTokenizer
 from evalcap.bleu.bleu import Bleu
 from evalcap.rouge.rouge import Rouge
@@ -12,6 +14,7 @@ from transformers import SwinModel
 from lightning_tools.optim import config_optimizer
 from peft import get_peft_model, LoraConfig, TaskType
 import pdb
+from kagglehub import model_upload
 
 class R2GenGPT(pl.LightningModule):
     """
