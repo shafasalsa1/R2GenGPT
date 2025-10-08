@@ -390,5 +390,47 @@ class R2GenGPT(pl.LightningModule):
         items.pop("v_num", None)
         return items
 
+        def generate(self, image):
+        """
+        Generate radiology report directly from a single image input (for inference/demo use).
+        """
+        self.eval()
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.to(device)
+
+        # Preprocess image
+        if not isinstance(image, torch.Tensor):
+            from torchvision import transforms
+            preprocess = transforms.Compose([
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+            ])
+            image = preprocess(image).unsqueeze(0).to(device)
+
+        # Encode visual features
+        with torch.no_grad():
+            img_embeds, atts_img = self.encode_img(image)
+            img_embeds = self.layer_norm(img_embeds)
+            img_embeds, atts_img = self.prompt_wrap(img_embeds, atts_img)
+
+            bos = torch.ones([1, 1], dtype=torch.long, device=device) * self.llama_tokenizer.bos_token_id
+            bos_embeds = self.embed_tokens(bos)
+            atts_bos = atts_img[:, :1]
+
+            inputs_embeds = torch.cat([bos_embeds, img_embeds], dim=1)
+            attention_mask = torch.cat([atts_bos, atts_img], dim=1)
+
+            outputs = self.llama_model.generate(
+                inputs_embeds=inputs_embeds,
+                num_beams=3,
+                max_new_tokens=256,
+                repetition_penalty=1.1,
+                temperature=0.7,
+            )
+            text = self.decode(outputs[0])
+            return {"Findings": text, "Impression": "AI-generated summary from the image."}
+
     def optimizer_zero_grad(self, epoch, batch_idx, optimizer):
         optimizer.zero_grad()
