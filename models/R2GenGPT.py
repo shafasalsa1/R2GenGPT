@@ -89,27 +89,17 @@ class R2GenGPT(pl.LightningModule):
         self.test_step_outputs = []
         self.val_score = 0.0
 
-        if args.delta_file is not None:
-    print(f"🔹 Loading delta weights from {args.delta_file}")
-    try:
-        state_obj = torch.load(
-            args.delta_file,
-            map_location=torch.device(f"cuda:{torch.cuda.current_device()}"),
-            weights_only=False  # penting
-        )
-
-        if "model" in state_obj:
-            state_dict = state_obj["model"]
-        elif "state_dict" in state_obj:
-            state_dict = state_obj["state_dict"]
-        else:
-            state_dict = state_obj
+    if args.delta_file is not None:
+        print(f"🔹 Loading delta weights from {args.delta_file}")
+        with torch.serialization.safe_globals([AttributeDict]):
+            state_dict = torch.load(
+                 args.delta_file,
+                 map_location=torch.device(f'cuda:{torch.cuda.current_device()}'),
+                 weights_only=False
+            )['model']
 
         self.load_state_dict(state_dict=state_dict, strict=False)
-        print(f"✅ Loaded checkpoint from {args.delta_file}")
-
-    except Exception as e:
-        print(f"❌ Gagal load checkpoint: {str(e)}")
+        print(f'✅ Successfully loaded checkpoint from {args.delta_file}')
 
     def score(self, ref, hypo):
         """
