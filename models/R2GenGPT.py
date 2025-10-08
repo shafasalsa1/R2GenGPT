@@ -53,7 +53,6 @@ class R2GenGPT(pl.LightningModule):
             self.llama_model = LlamaForCausalLM.from_pretrained(
                 args.llama_model,
                 torch_dtype=torch.float16,
-                load_in_8bit=True,
                 device_map={"":0}
             )
         else:
