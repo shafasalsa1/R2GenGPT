@@ -2,8 +2,8 @@ import os
 import json
 import torch
 import torch.nn as nn
-import lightning.pytorch as pl
-from transformers import LlamaForCausalLM, LlamaTokenizer
+import pytorch_lightning as pl
+from transformers import LlamaForCausalLM, LlamaTokenizer, BitsAndBytesConfig
 from evalcap.bleu.bleu import Bleu
 from evalcap.rouge.rouge import Rouge
 from evalcap.cider.cider import Cider
@@ -11,6 +11,7 @@ from evalcap.meteor.meteor import Meteor
 from transformers import SwinModel
 from lightning_tools.optim import config_optimizer
 from peft import get_peft_model, LoraConfig, TaskType
+from peft import LoraConfig, get_peft_model
 import pdb
 
 class R2GenGPT(pl.LightningModule):
@@ -42,38 +43,67 @@ class R2GenGPT(pl.LightningModule):
             print(f'Loading Frozen vision encoder:{args.vision_model} -- Done')
         else:
             print(f'Loading Trainable vision encoder:{args.vision_model} -- Done')
-
-        print('Loading LLAMA')
+        print('Loading LLAMA model...')
         self.llama_tokenizer = LlamaTokenizer.from_pretrained(args.llama_model, use_fast=False)
         self.llama_tokenizer.pad_token_id = 0
-        if args.low_resource:
-            self.llama_model = LlamaForCausalLM.from_pretrained(
-                args.llama_model,
-                torch_dtype=torch.float16,
-                device_map= "auto"
-            )
-        else:
-            self.llama_model = LlamaForCausalLM.from_pretrained(
-                args.llama_model,
-                torch_dtype=torch.float16,
-            ).to("cuda:0")
 
-        
-         
-        if args.llm_use_lora:
+        # ============================================================
+        # 🔹 Case 1: Low-resource mode → 4-bit + QLoRA
+        # ============================================================
+        if args.low_resource:
+            print("→ Low resource mode detected: loading 4-bit model with QLoRA")
+
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_use_double_quant=True,
+            )
+
+            # ⛔ DDP-safe: no device_map="auto"
+            self.llama_model = LlamaForCausalLM.from_pretrained(
+                args.llama_model,
+                quantization_config=bnb_config,
+                torch_dtype=torch.float16,
+                device_map=None,   # ❌ jangan "auto" (DDP unsafe)
+                low_cpu_mem_usage=True
+            )
+
+            # ✅ Tambahkan LoRA (QLoRA)
+            print("Applying QLoRA...")
             self.embed_tokens = self.llama_model.get_input_embeddings()
             peft_config = LoraConfig(
-                task_type=TaskType.CAUSAL_LM, inference_mode=False, r=args.llm_r, lora_alpha=args.llm_alpha, lora_dropout=args.lora_dropout
+                task_type=TaskType.CAUSAL_LM,
+                inference_mode=False,
+                r=args.llm_r,
+                lora_alpha=args.llm_alpha,
+                lora_dropout=args.lora_dropout,
+                bias="none",
+                target_modules=["q_proj", "v_proj"]  # standar untuk LLAMA
             )
             self.llama_model = get_peft_model(self.llama_model, peft_config)
             self.llama_model.print_trainable_parameters()
-            print('Loading LLAMA LoRA Done')         
+            print("Loading 4-bit QLoRA LLAMA Done ✅")
+
+        # ============================================================
+        # 🔹 Case 2: Full mode → FP16 (no quantization, no LoRA)
+        # ============================================================
         else:
+            print("→ Full precision mode detected: loading FP16 model")
+            self.llama_model = LlamaForCausalLM.from_pretrained(
+                args.llama_model,
+                torch_dtype=torch.float16,
+                device_map=None  # DDP-safe
+            )
+
             self.embed_tokens = self.llama_model.get_input_embeddings()
             for name, param in self.llama_model.named_parameters():
                 param.requires_grad = False
-            print('Loading LLAMA Done')
+            print("Loading FP16 LLAMA Done ✅")
 
+        # ============================================================
+        # Linear projection for visual features → LLAMA space
+        # ============================================================
         self.llama_proj = nn.Linear(self.visual_encoder.num_features, self.llama_model.config.hidden_size)
         self.layer_norm = nn.LayerNorm(self.llama_model.config.hidden_size)
         self.end_sym = args.end_sym
@@ -86,6 +116,7 @@ class R2GenGPT(pl.LightningModule):
             state_dict = torch.load(args.delta_file, map_location=torch.device(f'cuda:{torch.cuda.current_device()}'))['model']
             self.load_state_dict(state_dict=state_dict, strict=False)
             print(f'Load checkpoint from {args.delta_file}')
+
 
     def score(self, ref, hypo):
         """
@@ -210,27 +241,25 @@ class R2GenGPT(pl.LightningModule):
             "epoch": current_epoch,
             "step":global_step
         }
-        os.makedirs(os.path.join(self.hparams.savedmodel_path, 'checkpoints'), exist_ok=True)
-        save_to = os.path.join(
-            self.hparams.savedmodel_path, 'checkpoints',
-            "checkpoint_epoch{}_step{}_bleu{:3f}_cider{:3f}.pth".format(current_epoch, global_step, eval_res['Bleu_4'], eval_res['CIDEr']),
-        )
-        self.print("Saving checkpoint at step {} to {}.".format(global_step, save_to))
+        # 🔹 Buat folder checkpoints
+        ckpt_dir = os.path.join(self.hparams.savedmodel_path, 'checkpoints')
+        os.makedirs(ckpt_dir, exist_ok=True)
+
+        filename = f"checkpoint_epoch{current_epoch}_step{global_step}_bleu{eval_res['Bleu_4']:.3f}_cider{eval_res['CIDEr']:.3f}.pth"
+        save_to = os.path.join(ckpt_dir, filename)
+
+        # 🔹 Simpan checkpoint
+        self.print(f"💾 Saving checkpoint at step {global_step} → {save_to}")
         torch.save(save_obj, save_to)
 
-        variation_slug = os.path.basename(self.hparams.savedmodel_path)
-        
-        try:
-            model_upload(
-                handle=f"darnellignasius2/R2GenGPT/pyTorch/{variation_slug}", 
-                local_model_dir=save_to,
-                version_notes=f"Update 2025-10-02"
-            )
-            self.print(f"Checkpoint uploaded to Kaggle Models ({variation_slug}).")
+        # 🔹 Buat folder weights dan copy file dengan nama yang sama
+        weights_dir = os.path.join(self.hparams.savedmodel_path, 'weights')
+        os.makedirs(weights_dir, exist_ok=True)
+        copy_to = os.path.join(weights_dir, filename)
 
-            self.print(f"Local checkpoint {save_to} deleted.")
-        except Exception as e:
-            self.print(f"Failed to upload checkpoint to Kaggle Models: {e}")
+        os.system(f"cp {save_to} {copy_to}")
+        self.print("✅ Checkpoint saved successfully.")
+        
     
     def validation_step(self, samples, batch_idx):
         self.llama_tokenizer.padding_side = "right"
@@ -347,7 +376,7 @@ class R2GenGPT(pl.LightningModule):
             max_new_tokens=self.hparams.max_new_tokens,
             repetition_penalty=self.hparams.repetition_penalty,
             length_penalty=self.hparams.length_penalty,
-            temperature=self.hparams.temperature,
+            temperature=self.hparams.temperature, 
         )
         hypo = [self.decode(i) for i in outputs]
         ref = [self.decode(i) for i in to_regress_tokens['input_ids']]
@@ -386,48 +415,6 @@ class R2GenGPT(pl.LightningModule):
         items = super().get_progress_bar_dict()
         items.pop("v_num", None)
         return items
-
-    def generate(self, image):
-        """
-        Generate radiology report directly from a single image input (for inference/demo use).
-        """
-        self.eval()
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.to(device)
-
-        # Preprocess image
-        if not isinstance(image, torch.Tensor):
-            from torchvision import transforms
-            preprocess = transforms.Compose([
-                transforms.Resize((224, 224)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-            ])
-            image = preprocess(image).unsqueeze(0).to(device)
-
-        # Encode visual features
-        with torch.no_grad():
-            img_embeds, atts_img = self.encode_img(image)
-            img_embeds = self.layer_norm(img_embeds)
-            img_embeds, atts_img = self.prompt_wrap(img_embeds, atts_img)
-
-            bos = torch.ones([1, 1], dtype=torch.long, device=device) * self.llama_tokenizer.bos_token_id
-            bos_embeds = self.embed_tokens(bos)
-            atts_bos = atts_img[:, :1]
-
-            inputs_embeds = torch.cat([bos_embeds, img_embeds], dim=1)
-            attention_mask = torch.cat([atts_bos, atts_img], dim=1)
-
-            outputs = self.llama_model.generate(
-                inputs_embeds=inputs_embeds,
-                num_beams=3,
-                max_new_tokens=256,
-                repetition_penalty=1.1,
-                temperature=0.7,
-            )
-            text = self.decode(outputs[0])
-            return {"Findings": text, "Impression": "AI-generated summary from the image."}
 
     def optimizer_zero_grad(self, epoch, batch_idx, optimizer):
         optimizer.zero_grad()
